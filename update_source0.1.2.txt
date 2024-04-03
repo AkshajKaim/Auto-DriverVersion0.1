@@ -1,0 +1,104 @@
+#include <Servo.h>
+
+// Pin Definitions
+const int leftIRSensorPin = A0;
+const int rightIRSensorPin = A1;
+const int obstaclePin = 2;
+const int leftMotorPin = 3;
+const int rightMotorPin = 5;
+const int echoPin = 7;
+const int trigPin = 8;
+const int steeringPin = 9;
+
+// Sensor Thresholds and Motor Speeds
+const int obstacleThreshold = 20;
+const int leftEdgeThreshold = 500;
+const int rightEdgeThreshold = 500;
+const int midSteeringAngle = 90;
+const int leftSteeringAngle = 60;
+const int rightSteeringAngle = 120;
+const int baseSpeed = 150;
+
+// Servo Motor for Steering
+Servo steeringServo;
+
+// Function Declarations
+int getObstacleDistance();
+void driveForward(int speed);
+void stopMotors();
+void avoidObstacle();
+
+void setup() {
+  pinMode(leftIRSensorPin, INPUT);
+  pinMode(rightIRSensorPin, INPUT);
+  pinMode(obstaclePin, INPUT);
+  pinMode(leftMotorPin, OUTPUT);
+  pinMode(rightMotorPin, OUTPUT);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  
+  steeringServo.attach(steeringPin);
+}
+
+void loop() {
+  int leftIRValue = analogRead(leftIRSensorPin);
+  int rightIRValue = analogRead(rightIRSensorPin);
+  int obstacleDistance = getObstacleDistance();
+
+  if (obstacleDistance < obstacleThreshold) {
+    avoidObstacle();
+  } else {
+    if (leftIRValue > leftEdgeThreshold && rightIRValue > rightEdgeThreshold) {
+      steeringServo.write(midSteeringAngle);
+      driveForward(baseSpeed);
+    } else if (leftIRValue <= leftEdgeThreshold && rightIRValue > rightEdgeThreshold) {
+      steeringServo.write(leftSteeringAngle);
+      driveForward(baseSpeed);
+    } else if (rightIRValue <= rightEdgeThreshold && leftIRValue > leftEdgeThreshold) {
+      steeringServo.write(rightSteeringAngle);
+      driveForward(baseSpeed);
+    } else {
+      steeringServo.write(midSteeringAngle);
+      stopMotors();
+    }
+  }
+}
+
+int getObstacleDistance() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  long duration = pulseIn(echoPin, HIGH);
+  int distance = duration * 0.034 / 2;
+
+  // Error handling
+  if (distance == 0 || distance > 400) {
+    distance = 400; // Max distance
+  }
+  
+  return distance;
+}
+
+void driveForward(int speed) {
+  analogWrite(leftMotorPin, speed);
+  analogWrite(rightMotorPin, speed);
+}
+
+void stopMotors() {
+  analogWrite(leftMotorPin, 0);
+  analogWrite(rightMotorPin, 0);
+}
+
+void avoidObstacle() {
+  stopMotors();
+  delay(1000);
+  analogWrite(leftMotorPin, -baseSpeed);
+  analogWrite(rightMotorPin, -baseSpeed);
+  delay(1000);
+  analogWrite(leftMotorPin, baseSpeed);
+  analogWrite(rightMotorPin, 0);
+  delay(1000);
+  driveForward(baseSpeed);
+}
